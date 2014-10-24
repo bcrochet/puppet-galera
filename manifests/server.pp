@@ -4,7 +4,7 @@
 # manages the package, service, galera.cnf
 #
 # Parameters:
-#  [*config_hash*]           - Hash of config parameters that need to be set.
+#  [*msyql_server_hash*]     - Hash of mysql server parameters.
 #  [*bootstrap*]             - Defaults to false, boolean to set cluster boostrap.
 #  [*package_name*]          - The name of the galera package.
 #  [*package_ensure*]        - Ensure state for package. Can be specified as version.
@@ -42,15 +42,12 @@
 # }
 #
 class galera::server (
-  $config_hash           = {},
+  $mysql_server_hash     = {},
   $bootstrap             = false,
   $debug                 = false,
-  $package_name          = 'mariadb-galera-server',
-  $package_ensure        = 'present',
-  $service_name          = $mysql::params::service_name,
+  $service_name          = 'mariadb',
   $service_enable        = true,
   $service_ensure        = 'running',
-  $service_provider      = $mysql::params::service_provider,
   $wsrep_bind_address    = '0.0.0.0',
   $wsrep_node_address    = undef,
   $wsrep_provider        = '/usr/lib64/galera/libgalera_smm.so',
@@ -62,16 +59,11 @@ class galera::server (
   $wsrep_ssl             = false,
   $wsrep_ssl_key         = undef,
   $wsrep_ssl_cert        = undef,
-) inherits mysql {
+)  {
 
-  $config_class = { 'mysql::config' => $config_hash }
+  $mysql_server_class = { 'mysql::server' => $mysql_server_hash }
 
-  create_resources( 'class', $config_class )
-
-  package { 'galera':
-    name   => $package_name,
-    ensure => $package_ensure,
-  }
+  create_resources( 'class', $mysql_server_class )
 
   $wsrep_provider_options = wsrep_options({
     'socket.ssl'      => $wsrep_ssl,
@@ -90,13 +82,9 @@ class galera::server (
     notify  => Service['galera'],
   }
 
-  Service['galera'] -> Exec<| title == 'set_mysql_rootpw' |>
-
   service { 'galera':
     name     => $service_name,
     enable   => $service_enable,
     ensure   => $service_ensure,
-    require  => Package['galera'],
-    provider => $service_provider,
   }
 }
